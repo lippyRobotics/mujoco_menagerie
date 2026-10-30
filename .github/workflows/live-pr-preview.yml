@@ -1,0 +1,38 @@
+name: MuJoCo Live
+
+on:
+  pull_request:
+    paths:
+      - "**/*.xml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  generate-previews:
+    name: 🚀 MuJoCo Live Previews
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish MuJoCo Live links
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate \
+            --jq '.[] | select(.status != "removed" and (.filename | endswith(".xml"))) | .filename')
+
+          if [ -z "$files" ]; then
+            exit 0
+          fi
+
+          {
+            echo "### 🚀 MuJoCo Live Previews"
+            echo "Preview links for modified XML files in this Pull Request:"
+            echo ""
+            while IFS= read -r file; do
+              url="https://live.mujoco.org/?model=github:${REPO}/pull/${PR_NUMBER}/head/${file}"
+              echo "- [\`${file}\`](${url})"
+            done <<< "$files"
+          } >> "$GITHUB_STEP_SUMMARY"
